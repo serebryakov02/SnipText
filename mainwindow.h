@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QRect>
+#include <QColor>
 
 class QPushButton;
 class QScreen;
@@ -33,6 +34,11 @@ private:
     const int m_captureDelayMs = 180;
 
     tesseract::TessBaseAPI* m_ocr = nullptr;  // single API instance
+
+    // Selection overlay color.
+    QColor m_color;
+
+    void initGUI();
 };
 
 #endif // MAINWINDOW_H

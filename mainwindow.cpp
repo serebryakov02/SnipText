@@ -10,6 +10,9 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QClipboard>
+#include <QMenuBar>
+#include <QAction>
+#include <QColorDialog>
 
 #include <tesseract/baseapi.h>
 
@@ -25,10 +28,7 @@ QString desktopSavePath()
 }
 }
 
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , m_newShotBtn(nullptr)
-    , m_screen(nullptr)
+void MainWindow::initGUI()
 {
     auto *cw = new QWidget(this);
     setCentralWidget(cw);
@@ -43,6 +43,24 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_newShotBtn, &QPushButton::clicked,
             this, &MainWindow::onNewScreenshot);
 
+    auto settingsMenu = menuBar()->addMenu(tr("Settings"));
+    auto colorAct = new QAction(tr("Choose Overlay Color..."), this);
+    connect(colorAct, &QAction::triggered, this, [this](){
+        m_color = QColorDialog::getColor();
+    });
+    settingsMenu->addAction(colorAct);
+
+    setWindowTitle("SnipText");
+}
+
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+    , m_newShotBtn(nullptr)
+    , m_screen(nullptr)
+    , m_color(QColor("red"))
+{
+    initGUI();
+
     // Create and init Tesseract once.
     m_ocr = new tesseract::TessBaseAPI();
     const int initRc = m_ocr->Init("/opt/homebrew/share/tessdata", "eng");
@@ -52,8 +70,6 @@ MainWindow::MainWindow(QWidget *parent)
         delete m_ocr;
         m_ocr = nullptr;
     }
-
-    setWindowTitle("SnipText");
 }
 
 MainWindow::~MainWindow()
@@ -79,6 +95,7 @@ void MainWindow::onNewScreenshot()
 
     // Create a transient overlay (top-level window).
     auto *overlay = new SelectionOverlay;
+    overlay->setColor(m_color);
     overlay->setAttribute(Qt::WA_DeleteOnClose, true);
     overlay->setGeometry(m_screen->geometry());
     overlay->show();

@@ -8,6 +8,8 @@
 
 SelectionOverlay::SelectionOverlay(QWidget *parent)
     : QWidget(parent)
+    , m_dragging(false)
+    , m_color(QColor("red"))
 {
     // Frameless overlay that floats above everything and lets each pixel be drawn
     // with its own transparency (so we can dim the screen but leave the selection area clear).
@@ -83,11 +85,16 @@ void SelectionOverlay::paintEvent(QPaintEvent *)
         p.restore();
 
         // Red border around the selection
-        p.setPen(QPen(Qt::red, 2));
+        p.setPen(QPen(m_color, 2));
         p.setBrush(Qt::NoBrush);
         p.drawRect(sel.adjusted(0, 0, -1, -1));
     } else {
         // No selection yet: dim the whole screen.
         p.fillRect(rect(), QColor(0, 0, 0, 120));
     }
+}
+
+void SelectionOverlay::setColor(const QColor &newColor)
+{
+    m_color = newColor;
 }

@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QRect>
 #include <QPoint>
+#include <QColor>
 
 class SelectionOverlay : public QWidget
 {
@@ -11,6 +12,7 @@ class SelectionOverlay : public QWidget
 public:
     explicit SelectionOverlay(QWidget *parent = nullptr);
     QRect selectedRect() const;
+    void setColor(const QColor &newColor);
 
 signals:
     void selectionFinished(const QRect &rect);
@@ -26,7 +28,8 @@ protected:
 private:
     QPoint  m_origin;
     QRect   m_selection;
-    bool    m_dragging = false;
+    bool    m_dragging;
+    QColor  m_color;
 };
 
 #endif // SELECTIONOVERLAY_H
