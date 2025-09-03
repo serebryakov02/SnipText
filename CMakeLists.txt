@@ -44,6 +44,34 @@ endif()
 
 target_link_libraries(SnipText PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 
+# Minimal Tesseract on macOS
+set(HOMEBREW_PREFIX "/opt/homebrew")
+
+target_include_directories(SnipText PRIVATE
+    "${HOMEBREW_PREFIX}/include"
+)
+target_link_directories(SnipText PRIVATE
+    "${HOMEBREW_PREFIX}/lib"
+)
+
+# Find the correct Leptonica lib name (lept or leptonica)
+find_library(LEPTONICA_LIB
+    NAMES lept leptonica
+    PATHS "${HOMEBREW_PREFIX}/lib"
+    REQUIRED
+)
+
+target_link_libraries(SnipText PRIVATE
+    tesseract
+    ${LEPTONICA_LIB}
+)
+
+set_target_properties(SnipText PROPERTIES
+    BUILD_RPATH   "${HOMEBREW_PREFIX}/lib"
+    INSTALL_RPATH "${HOMEBREW_PREFIX}/lib"
+)
+# ------------------------------------------------------------
+
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
 # If you are developing for iOS or macOS you should consider setting an
 # explicit, fixed bundle identifier manually though.

@@ -9,6 +9,9 @@
 #include <QTimer>
 #include <QStandardPaths>
 #include <QDir>
+#include <QClipboard>
+
+#include <tesseract/baseapi.h>
 
 namespace {
 QString desktopSavePath()
@@ -40,12 +43,26 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_newShotBtn, &QPushButton::clicked,
             this, &MainWindow::onNewScreenshot);
 
+    // Create and init Tesseract once.
+    m_ocr = new tesseract::TessBaseAPI();
+    const int initRc = m_ocr->Init("/opt/homebrew/share/tessdata", "eng");
+    if (initRc != 0) {
+        QMessageBox::critical(this, tr("Tesseract"),
+                              tr("Failed to initialize Tesseract. Check tessdata path."));
+        delete m_ocr;
+        m_ocr = nullptr;
+    }
+
     setWindowTitle("SnipText");
 }
 
 MainWindow::~MainWindow()
 {
-
+    if (m_ocr) {
+        m_ocr->End(); // Release engine resources.
+        delete m_ocr;
+        m_ocr = nullptr;
+    }
 }
 
 void MainWindow::onNewScreenshot()
@@ -118,6 +135,35 @@ void MainWindow::saveSelectionFromScreen(const QRect &selectionLogical)
     }
 
     const QImage cropped = src.copy(pixelRect);
+
+    // --- OCR (minimal) ---
+    if (m_ocr) {
+        QImage gray = cropped.convertToFormat(QImage::Format_Grayscale8);
+        if (!gray.isNull()) {
+            m_ocr->SetImage(gray.constBits(),
+                            gray.width(),
+                            gray.height(),
+                            1,
+                            gray.bytesPerLine());
+
+            char* utf8 = m_ocr->GetUTF8Text();
+            if (utf8) {
+                QString out = QString::fromUtf8(utf8);
+                delete [] utf8;
+
+                out.remove(QChar::fromLatin1('\f'));
+                out = out.trimmed();
+                if (!out.isEmpty()) {
+                    if (QClipboard* cb = QGuiApplication::clipboard()) {
+                        cb->setText(out, QClipboard::Clipboard); // Copy to system clipboard.
+                    }
+                }
+
+                m_ocr->Clear();
+            }
+        }
+    }
+    // --- end OCR ---
 
     const QString baseDir = desktopSavePath();
     const QString fileName =

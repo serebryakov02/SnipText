@@ -7,6 +7,8 @@
 class QPushButton;
 class QScreen;
 
+namespace tesseract { class TessBaseAPI; } // Forward-declare.
+
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -29,6 +31,8 @@ private:
 
     // Defer time to let compositor remove the overlay from the frame.
     const int m_captureDelayMs = 180;
+
+    tesseract::TessBaseAPI* m_ocr = nullptr;  // single API instance
 };
 
 #endif // MAINWINDOW_H
