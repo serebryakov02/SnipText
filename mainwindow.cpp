@@ -13,6 +13,7 @@
 #include <QMenuBar>
 #include <QAction>
 #include <QColorDialog>
+#include <QFileDialog>
 
 #include <tesseract/baseapi.h>
 
@@ -44,11 +45,33 @@ void MainWindow::initGUI()
             this, &MainWindow::onNewScreenshot);
 
     auto settingsMenu = menuBar()->addMenu(tr("Settings"));
+
     auto colorAct = new QAction(tr("Choose Overlay Color..."), this);
     connect(colorAct, &QAction::triggered, this, [this](){
         m_color = QColorDialog::getColor();
     });
     settingsMenu->addAction(colorAct);
+
+    auto saveScreenshotAct = new QAction(tr("Also Save Screenshot"));
+    saveScreenshotAct->setCheckable(true);
+    saveScreenshotAct->setChecked(true);
+    settingsMenu->addAction(saveScreenshotAct);
+
+    auto selectFolderAct = new QAction(tr("Change Screenshot Save Folder..."));
+    connect(selectFolderAct, &QAction::triggered, this, [this](){
+        m_dir = QFileDialog::getExistingDirectory();
+        // TODO: Implement saving the user-selected folder so that
+        // when the program launches next time, it uses the previous selection.
+    });
+
+    settingsMenu->addAction(selectFolderAct);
+
+    // This connect() is placed below the action definition because it should go into
+    // the menu first, but we also need to access an action that is defined after it in the slot.
+    connect(saveScreenshotAct, &QAction::toggled, this, [this, selectFolderAct](bool on){
+        m_saveScreenshot = on;
+        selectFolderAct->setEnabled(on);
+    });
 
     setWindowTitle("SnipText");
 }
@@ -58,7 +81,10 @@ MainWindow::MainWindow(QWidget *parent)
     , m_newShotBtn(nullptr)
     , m_screen(nullptr)
     , m_color(QColor("red"))
+    , m_saveScreenshot(true)
 {
+    m_dir = desktopSavePath();
+
     initGUI();
 
     // Create and init Tesseract once.
@@ -182,16 +208,17 @@ void MainWindow::saveSelectionFromScreen(const QRect &selectionLogical)
     }
     // --- end OCR ---
 
-    const QString baseDir = desktopSavePath();
     const QString fileName =
         QString("snip_%1.png").arg(QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss"));
-    const QString filePath = QDir(baseDir).filePath(fileName);
+    const QString filePath = QDir(m_dir).filePath(fileName);
 
-    if (cropped.save(filePath, "PNG")) {
-        QMessageBox::information(this, tr("Saved"),
-                                 tr("Screenshot saved to:\n%1").arg(filePath));
-    } else {
-        QMessageBox::critical(this, tr("Error"),
-                              tr("Failed to save screenshot to:\n%1").arg(filePath));
+    if (m_saveScreenshot) {
+        if (cropped.save(filePath, "PNG")) {
+            QMessageBox::information(this, tr("Saved"),
+                                     tr("Screenshot saved to:\n%1").arg(filePath));
+        } else {
+            QMessageBox::critical(this, tr("Error"),
+                                  tr("Failed to save screenshot to:\n%1").arg(filePath));
+        }
     }
 }

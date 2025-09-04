@@ -38,6 +38,12 @@ private:
     // Selection overlay color.
     QColor m_color;
 
+    // When true, the screenshot is saved in addition to the extracted text.
+    bool m_saveScreenshot;
+
+    // The directory where screenshots will be saved if the user has toggled that action on.
+    QString m_dir;
+
     void initGUI();
 };
 
