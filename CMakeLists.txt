@@ -16,13 +16,18 @@ set(PROJECT_SOURCES
         main.cpp
         mainwindow.cpp
         mainwindow.h
+        selectionoverlay.cpp
+        selectionoverlay.h
+        capturesession.cpp
+        capturesession.h
+        ocrservice.cpp
+        ocrservice.h
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(SnipText
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
-        selectionoverlay.h selectionoverlay.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET SnipText APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

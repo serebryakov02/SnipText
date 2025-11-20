@@ -1,14 +1,15 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include <QMainWindow>
-#include <QRect>
 #include <QColor>
+#include <QMainWindow>
+#include <QString>
 
 class QPushButton;
-class QScreen;
+class QImage;
 
-namespace tesseract { class TessBaseAPI; } // Forward-declare.
+class CaptureSession;
+class OcrService;
 
 class MainWindow : public QMainWindow
 {
@@ -22,18 +23,17 @@ private slots:
     void onNewScreenshot();
 
 private:
-    void saveSelectionFromScreen(const QRect &selectionLogical);
+    void processCapturedImage(const QImage &image);
+    void handleCaptureError(const QString &errorMessage, bool fatal);
+    CaptureSession* createCaptureSession();
 
 private:
     QPushButton *m_newShotBtn;
 
-    // Screen chosen for the current capture session.
-    QScreen *m_screen;
-
     // Defer time to let compositor remove the overlay from the frame.
     const int m_captureDelayMs = 180;
 
-    tesseract::TessBaseAPI* m_ocr = nullptr;  // single API instance
+    OcrService *m_ocrService;
 
     // Selection overlay color.
     QColor m_color;
