@@ -52,6 +52,7 @@ target_link_libraries(SnipText PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 # ------------------------------------------------------------
 # Tesseract/Leptonica detection (macOS-focused for now)
 set(TESSERACT_ROOT "" CACHE PATH "Prefix where Tesseract is installed")
+set(TESSDATA_PREFIX "" CACHE PATH "Directory containing tessdata")
 
 set(_TESS_SEARCH_PATHS
     ${TESSERACT_ROOT}
@@ -98,6 +99,17 @@ set_target_properties(SnipText PROPERTIES
     BUILD_RPATH   "${_OCR_RPATHS}"
     INSTALL_RPATH "${_OCR_RPATHS}"
 )
+
+if(TESSDATA_PREFIX STREQUAL "")
+    get_filename_component(_TESS_PREFIX "${TESSERACT_INCLUDE_DIR}" DIRECTORY)
+    set(TESSDATA_PREFIX "${_TESS_PREFIX}/share/tessdata")
+endif()
+
+if(NOT EXISTS "${TESSDATA_PREFIX}")
+    message(WARNING "Specified TESSDATA_PREFIX='${TESSDATA_PREFIX}' does not exist; runtime OCR init may fail.")
+endif()
+
+target_compile_definitions(SnipText PRIVATE DEFAULT_TESSDATA_PATH="${TESSDATA_PREFIX}")
 # ------------------------------------------------------------
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.

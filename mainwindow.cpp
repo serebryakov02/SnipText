@@ -47,7 +47,11 @@ void MainWindow::initGUI()
 
     auto colorAct = new QAction(tr("Choose Overlay Color..."), this);
     connect(colorAct, &QAction::triggered, this, [this](){
-        m_color = QColorDialog::getColor();
+        const QColor chosen = QColorDialog::getColor(m_color, this);
+        if (!chosen.isValid())
+            return;
+
+        m_color = chosen;
         m_settings->setValue("overlayColor", m_color);
     });
     settingsMenu->addAction(colorAct);
@@ -60,7 +64,11 @@ void MainWindow::initGUI()
     auto selectFolderAct = new QAction(tr("Change Screenshot Save Folder..."));
     selectFolderAct->setEnabled(m_saveScreenshot);
     connect(selectFolderAct, &QAction::triggered, this, [this](){
-        m_dir = QFileDialog::getExistingDirectory();
+        const QString dir = QFileDialog::getExistingDirectory(this, {}, m_dir);
+        if (dir.isEmpty())
+            return;
+
+        m_dir = dir;
         m_settings->setValue("saveFolderPath", m_dir);
     });
 
@@ -103,7 +111,8 @@ MainWindow::MainWindow(QWidget *parent)
     initGUI();
 
     // Create and init Tesseract once.
-    if (!m_ocrService->initialize("/opt/homebrew/share/tessdata", "eng")) {
+    const QString tessdataPath = QString::fromUtf8(DEFAULT_TESSDATA_PATH);
+    if (!m_ocrService->initialize(tessdataPath, "eng")) {
         QMessageBox::critical(this, tr("Tesseract"),
                               tr("Failed to initialize Tesseract. Check tessdata path."));
     }
@@ -147,10 +156,7 @@ void MainWindow::processCapturedImage(const QImage &image)
         dir.mkpath(".");
     const QString filePath = dir.filePath(fileName);
 
-    if (image.save(filePath, "PNG")) {
-        QMessageBox::information(this, tr("Saved"),
-                                 tr("Screenshot saved to:\n%1").arg(filePath));
-    } else {
+    if (!image.save(filePath, "PNG")) {
         QMessageBox::critical(this, tr("Error"),
                               tr("Failed to save screenshot to:\n%1").arg(filePath));
     }
