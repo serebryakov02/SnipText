@@ -49,31 +49,54 @@ endif()
 
 target_link_libraries(SnipText PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 
-# Minimal Tesseract on macOS
-set(HOMEBREW_PREFIX "/opt/homebrew")
+# ------------------------------------------------------------
+# Tesseract/Leptonica detection (macOS-focused for now)
+set(TESSERACT_ROOT "" CACHE PATH "Prefix where Tesseract is installed")
 
-target_include_directories(SnipText PRIVATE
-    "${HOMEBREW_PREFIX}/include"
-)
-target_link_directories(SnipText PRIVATE
-    "${HOMEBREW_PREFIX}/lib"
+set(_TESS_SEARCH_PATHS
+    ${TESSERACT_ROOT}
+    /opt/homebrew
+    /usr/local
+    /opt/local
 )
 
-# Find the correct Leptonica lib name (lept or leptonica)
+list(REMOVE_DUPLICATES _TESS_SEARCH_PATHS)
+
+find_path(TESSERACT_INCLUDE_DIR
+    NAMES tesseract/baseapi.h
+    PATH_SUFFIXES include
+    PATHS ${_TESS_SEARCH_PATHS}
+)
+
+find_library(TESSERACT_LIB
+    NAMES tesseract
+    PATH_SUFFIXES lib
+    PATHS ${_TESS_SEARCH_PATHS}
+)
+
 find_library(LEPTONICA_LIB
     NAMES lept leptonica
-    PATHS "${HOMEBREW_PREFIX}/lib"
-    REQUIRED
+    PATH_SUFFIXES lib
+    PATHS ${_TESS_SEARCH_PATHS}
 )
 
-target_link_libraries(SnipText PRIVATE
-    tesseract
-    ${LEPTONICA_LIB}
-)
+if(NOT TESSERACT_INCLUDE_DIR OR NOT TESSERACT_LIB OR NOT LEPTONICA_LIB)
+    message(FATAL_ERROR
+        "Could not find Tesseract/Leptonica. Install via Homebrew (brew install tesseract) "
+        "or set TESSERACT_ROOT to the installation prefix.")
+endif()
+
+target_include_directories(SnipText PRIVATE "${TESSERACT_INCLUDE_DIR}")
+target_link_libraries(SnipText PRIVATE "${TESSERACT_LIB}" "${LEPTONICA_LIB}")
+
+get_filename_component(_TESS_LIB_DIR "${TESSERACT_LIB}" DIRECTORY)
+get_filename_component(_LEPT_LIB_DIR "${LEPTONICA_LIB}" DIRECTORY)
+set(_OCR_RPATHS "${_TESS_LIB_DIR}" "${_LEPT_LIB_DIR}")
+list(REMOVE_DUPLICATES _OCR_RPATHS)
 
 set_target_properties(SnipText PROPERTIES
-    BUILD_RPATH   "${HOMEBREW_PREFIX}/lib"
-    INSTALL_RPATH "${HOMEBREW_PREFIX}/lib"
+    BUILD_RPATH   "${_OCR_RPATHS}"
+    INSTALL_RPATH "${_OCR_RPATHS}"
 )
 # ------------------------------------------------------------
 
