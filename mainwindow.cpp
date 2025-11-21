@@ -34,6 +34,8 @@ void MainWindow::initGUI()
     setCentralWidget(cw);
 
     m_newShotBtn = new QPushButton(tr("New Screenshot"), cw);
+    // TODO: Add a keyboard shortcut for this button, let the user customize it,
+    // and persist the choice via QSettings.
 
     auto *layout = new QVBoxLayout;
     layout->addWidget(m_newShotBtn, 0, Qt::AlignCenter);
