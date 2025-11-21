@@ -14,6 +14,7 @@
 #include <QFileDialog>
 #include <QImage>
 #include <QDateTime>
+#include <QSettings>
 
 namespace {
 QString desktopSavePath()
@@ -47,19 +48,20 @@ void MainWindow::initGUI()
     auto colorAct = new QAction(tr("Choose Overlay Color..."), this);
     connect(colorAct, &QAction::triggered, this, [this](){
         m_color = QColorDialog::getColor();
+        m_settings->setValue("overlayColor", m_color);
     });
     settingsMenu->addAction(colorAct);
 
     auto saveScreenshotAct = new QAction(tr("Also Save Screenshot"));
     saveScreenshotAct->setCheckable(true);
-    saveScreenshotAct->setChecked(true);
+    saveScreenshotAct->setChecked(m_saveScreenshot);
     settingsMenu->addAction(saveScreenshotAct);
 
     auto selectFolderAct = new QAction(tr("Change Screenshot Save Folder..."));
+    selectFolderAct->setEnabled(m_saveScreenshot);
     connect(selectFolderAct, &QAction::triggered, this, [this](){
         m_dir = QFileDialog::getExistingDirectory();
-        // TODO: Implement saving the user-selected folder so that
-        // when the program launches next time, it uses the previous selection.
+        m_settings->setValue("saveFolderPath", m_dir);
     });
 
     settingsMenu->addAction(selectFolderAct);
@@ -69,6 +71,7 @@ void MainWindow::initGUI()
     connect(saveScreenshotAct, &QAction::toggled, this, [this, selectFolderAct](bool on){
         m_saveScreenshot = on;
         selectFolderAct->setEnabled(on);
+        m_settings->setValue("alsoSaveScreenshot", m_saveScreenshot);
     });
 
     setWindowTitle("SnipText");
@@ -80,8 +83,22 @@ MainWindow::MainWindow(QWidget *parent)
     , m_color(QColor("red"))
     , m_saveScreenshot(true)
     , m_ocrService(new OcrService)
+    , m_settings(new QSettings("MySoft", "SnipText", this))
 {
     m_dir = desktopSavePath();
+
+    if (m_settings) {
+        const QColor color = m_settings->value("overlayColor").value<QColor>();
+        if (color.isValid())
+            m_color = color;
+
+        const QString storedDir = m_settings->value("saveFolderPath").toString();
+        if (!storedDir.isEmpty())
+            m_dir = storedDir;
+
+        if (m_settings->contains("alsoSaveScreenshot"))
+            m_saveScreenshot = m_settings->value("alsoSaveScreenshot").toBool();
+    }
 
     initGUI();
 

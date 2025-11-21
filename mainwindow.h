@@ -7,6 +7,7 @@
 
 class QPushButton;
 class QImage;
+class QSettings;
 
 class CaptureSession;
 class OcrService;
@@ -45,6 +46,8 @@ private:
     QString m_dir;
 
     void initGUI();
+
+    QSettings *m_settings;
 };
 
 #endif // MAINWINDOW_H
