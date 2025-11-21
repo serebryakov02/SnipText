@@ -16,8 +16,7 @@
 #include <QDateTime>
 #include <QSettings>
 
-namespace {
-QString desktopSavePath()
+static QString desktopSavePath()
 {
     QString path = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
     if (path.isEmpty())
@@ -25,7 +24,6 @@ QString desktopSavePath()
     if (path.isEmpty())
         path = QDir::currentPath();
     return path;
-}
 }
 
 void MainWindow::initGUI()

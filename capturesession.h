@@ -6,7 +6,6 @@
 #include <QImage>
 #include <QPointer>
 #include <QRect>
-#include <QString>
 
 class QScreen;
 class SelectionOverlay;

@@ -11,7 +11,6 @@ class SelectionOverlay : public QWidget
     Q_OBJECT
 public:
     explicit SelectionOverlay(QWidget *parent = nullptr);
-    QRect selectedRect() const;
     void setColor(const QColor &newColor);
 
 signals:
