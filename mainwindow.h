@@ -33,7 +33,7 @@ private:
     // Defer time to let compositor remove the overlay from the frame.
     const int m_captureDelayMs = 180;
 
-    OcrService *m_ocrService;
+    OcrService *m_ocrService;  // single API instance
 
     // Selection overlay color.
     QColor m_color;

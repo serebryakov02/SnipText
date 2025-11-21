@@ -85,6 +85,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     initGUI();
 
+    // Create and init Tesseract once.
     if (!m_ocrService->initialize("/opt/homebrew/share/tessdata", "eng")) {
         QMessageBox::critical(this, tr("Tesseract"),
                               tr("Failed to initialize Tesseract. Check tessdata path."));
@@ -108,14 +109,16 @@ void MainWindow::onNewScreenshot()
 
 void MainWindow::processCapturedImage(const QImage &image)
 {
+    // --- OCR (minimal) ---
     if (m_ocrService && m_ocrService->isReady()) {
         const QString text = m_ocrService->extractText(image);
         if (!text.isEmpty()) {
             if (QClipboard *cb = QGuiApplication::clipboard()) {
-                cb->setText(text, QClipboard::Clipboard);
+                cb->setText(text, QClipboard::Clipboard); // Copy to system clipboard.
             }
         }
     }
+    // --- end OCR ---
 
     if (!m_saveScreenshot)
         return;

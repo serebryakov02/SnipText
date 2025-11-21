@@ -9,7 +9,7 @@ OcrService::OcrService() = default;
 OcrService::~OcrService()
 {
     if (m_api) {
-        m_api->End();
+        m_api->End(); // Release engine resources.
         delete m_api;
         m_api = nullptr;
     }
@@ -17,6 +17,7 @@ OcrService::~OcrService()
 
 bool OcrService::initialize(const QString &dataPath, const QString &language)
 {
+    // Re-create the API so we can change languages or recover from failures.
     if (m_api) {
         m_api->End();
         delete m_api;
@@ -48,6 +49,7 @@ QString OcrService::extractText(const QImage &image)
     if (!isReady())
         return {};
 
+    // Tesseract performs best on grayscale data, so convert before feeding it.
     QImage gray = image.convertToFormat(QImage::Format_Grayscale8);
     if (gray.isNull())
         return {};
@@ -63,6 +65,7 @@ QString OcrService::extractText(const QImage &image)
         result = QString::fromUtf8(utf8);
         delete [] utf8;
 
+        // Remove page-break leftovers to avoid polluting clipboard text.
         result.remove(QChar::fromLatin1('\f'));
         result = result.trimmed();
     }
