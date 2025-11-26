@@ -9,6 +9,7 @@
 class QPushButton;
 class QImage;
 class QSettings;
+class QShortcut;
 
 class CaptureSession;
 class OcrService;
@@ -56,6 +57,8 @@ private:
     void initGUI();
 
     QSettings *m_settings;
+    QString m_captureShortcut;
+    QShortcut *m_shortcutHandler;
 };
 
 #endif // MAINWINDOW_H

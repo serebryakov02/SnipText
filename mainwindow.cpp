@@ -15,6 +15,13 @@
 #include <QImage>
 #include <QDateTime>
 #include <QSettings>
+#include <QShortcut>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QFormLayout>
+#include <QKeySequenceEdit>
 
 #ifndef DEFAULT_TESSDATA_PATH
 #define DEFAULT_TESSDATA_PATH ""
@@ -38,8 +45,6 @@ void MainWindow::initGUI()
     setCentralWidget(cw);
 
     m_newShotBtn = new QPushButton(tr("New Screenshot"), cw);
-    // TODO: Add a keyboard shortcut for this button, let the user customize it,
-    // and persist the choice via QSettings.
 
     auto *layout = new QVBoxLayout;
     layout->addWidget(m_newShotBtn, 0, Qt::AlignCenter);
@@ -47,6 +52,10 @@ void MainWindow::initGUI()
     cw->setLayout(layout);
 
     connect(m_newShotBtn, &QPushButton::clicked,
+            this, &MainWindow::onNewScreenshot);
+
+    m_shortcutHandler = new QShortcut(QKeySequence(m_captureShortcut), this);
+    connect(m_shortcutHandler, &QShortcut::activated,
             this, &MainWindow::onNewScreenshot);
 
     auto settingsMenu = menuBar()->addMenu(tr("Settings"));
@@ -89,6 +98,37 @@ void MainWindow::initGUI()
     });
     settingsMenu->addAction(multiAreaAct);
 
+    auto shortcutAct = new QAction(tr("Change Capture Shortcut..."));
+    connect(shortcutAct, &QAction::triggered, this, [this]() {
+        QDialog dialog(this);
+        dialog.setWindowTitle(tr("Capture Shortcut"));
+
+        auto *layout = new QFormLayout(&dialog);
+        auto *keyEdit = new QKeySequenceEdit(QKeySequence(m_captureShortcut), &dialog);
+        layout->addRow(tr("Shortcut:"), keyEdit);
+
+        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+                                            Qt::Horizontal,
+                                            &dialog);
+        layout->addWidget(buttons);
+
+        connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+        if (dialog.exec() != QDialog::Accepted)
+            return;
+
+        const QKeySequence seq = keyEdit->keySequence();
+        if (seq.isEmpty())
+            return;
+
+        m_captureShortcut = seq.toString(QKeySequence::NativeText);
+        if (m_shortcutHandler)
+            m_shortcutHandler->setKey(seq);
+        m_settings->setValue("captureShortcut", m_captureShortcut);
+    });
+    settingsMenu->addAction(shortcutAct);
+
     // This connect() is placed below the action definition because it should go into
     // the menu first, but we also need to access an action that is defined after it in the slot.
     connect(saveScreenshotAct, &QAction::toggled, this, [this, selectFolderAct](bool on){
@@ -106,6 +146,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_color(QColor("red"))
     , m_saveScreenshot(true)
     , m_captureMultipleAreas(false)
+    , m_shortcutHandler(nullptr)
     , m_ocrService(new OcrService)
     , m_settings(new QSettings("MySoft", "SnipText", this))
 {
@@ -125,7 +166,11 @@ MainWindow::MainWindow(QWidget *parent)
 
         if (m_settings->contains("multiCaptureEnabled"))
             m_captureMultipleAreas = m_settings->value("multiCaptureEnabled").toBool();
+
+        m_captureShortcut = m_settings->value("captureShortcut", QStringLiteral("Ctrl+Shift+S")).toString();
     }
+    if (m_captureShortcut.isEmpty())
+        m_captureShortcut = QStringLiteral("Ctrl+Shift+S");
 
     initGUI();
 
