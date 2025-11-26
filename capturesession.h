@@ -20,12 +20,15 @@ public:
 
     void setOverlayColor(const QColor &color);
     void setCaptureDelay(int delayMs);
+    void setMultiSelectionEnabled(bool enabled);
+    bool multiSelectionEnabled() const { return m_multiSelectionEnabled; }
 
     void start();
 
 signals:
     void captureReady(const QImage &image);
     void captureFailed(const QString &errorMessage, bool fatal);
+    void multiCaptureFinished();
 
 private:
     void beginOverlay();
@@ -46,6 +49,11 @@ private:
 
     // Guards against running multiple captures at once.
     bool m_active = false;
+
+    bool m_multiSelectionEnabled = false;
+    QImage m_snapshot;
+    qreal m_snapshotDpr = 1.0;
+    bool m_hasSnapshot = false;
 };
 
 #endif // CAPTURESESSION_H

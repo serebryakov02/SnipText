@@ -16,6 +16,12 @@
 #include <QDateTime>
 #include <QSettings>
 
+#ifndef DEFAULT_TESSDATA_PATH
+#define DEFAULT_TESSDATA_PATH ""
+#endif
+// DEFAULT_TESSDATA_PATH is injected via CMake so the app knows where tessdata lives
+// without hardcoding the path in the source.
+
 static QString desktopSavePath()
 {
     QString path = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
@@ -74,6 +80,15 @@ void MainWindow::initGUI()
 
     settingsMenu->addAction(selectFolderAct);
 
+    auto multiAreaAct = new QAction(tr("Capture Multiple Areas"));
+    multiAreaAct->setCheckable(true);
+    multiAreaAct->setChecked(m_captureMultipleAreas);
+    connect(multiAreaAct, &QAction::toggled, this, [this](bool on){
+        m_captureMultipleAreas = on;
+        m_settings->setValue("multiCaptureEnabled", m_captureMultipleAreas);
+    });
+    settingsMenu->addAction(multiAreaAct);
+
     // This connect() is placed below the action definition because it should go into
     // the menu first, but we also need to access an action that is defined after it in the slot.
     connect(saveScreenshotAct, &QAction::toggled, this, [this, selectFolderAct](bool on){
@@ -90,6 +105,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_newShotBtn(nullptr)
     , m_color(QColor("red"))
     , m_saveScreenshot(true)
+    , m_captureMultipleAreas(false)
     , m_ocrService(new OcrService)
     , m_settings(new QSettings("MySoft", "SnipText", this))
 {
@@ -106,6 +122,9 @@ MainWindow::MainWindow(QWidget *parent)
 
         if (m_settings->contains("alsoSaveScreenshot"))
             m_saveScreenshot = m_settings->value("alsoSaveScreenshot").toBool();
+
+        if (m_settings->contains("multiCaptureEnabled"))
+            m_captureMultipleAreas = m_settings->value("multiCaptureEnabled").toBool();
     }
 
     initGUI();
@@ -130,25 +149,48 @@ void MainWindow::onNewScreenshot()
     if (!session)
         return;
 
+    if (m_captureMultipleAreas)
+        m_multiCaptureTexts.clear();
+
     session->start();
 }
 
-void MainWindow::processCapturedImage(const QImage &image)
+void MainWindow::processCapturedImage(const QImage &image, bool multiCapture)
 {
-    // --- OCR (minimal) ---
-    if (m_ocrService && m_ocrService->isReady()) {
-        const QString text = m_ocrService->extractText(image);
-        if (!text.isEmpty()) {
-            if (QClipboard *cb = QGuiApplication::clipboard()) {
-                cb->setText(text, QClipboard::Clipboard); // Copy to system clipboard.
-            }
+    QString text;
+    if (m_ocrService && m_ocrService->isReady())
+        text = m_ocrService->extractText(image);
+
+    if (!text.isEmpty()) {
+        if (multiCapture) {
+            m_multiCaptureTexts.append(text);
+        } else {
+            if (QClipboard *cb = QGuiApplication::clipboard())
+                cb->setText(text, QClipboard::Clipboard);
         }
     }
-    // --- end OCR ---
 
-    if (!m_saveScreenshot)
+    if (m_saveScreenshot)
+        saveScreenshot(image);
+}
+
+void MainWindow::finalizeMultiCapture()
+{
+    if (m_multiCaptureTexts.isEmpty())
         return;
 
+    const QString finalText = m_multiCaptureTexts.join("\n\n");
+    m_multiCaptureTexts.clear();
+
+    if (finalText.isEmpty())
+        return;
+
+    if (QClipboard *cb = QGuiApplication::clipboard())
+        cb->setText(finalText, QClipboard::Clipboard);
+}
+
+void MainWindow::saveScreenshot(const QImage &image)
+{
     const QString fileName =
         QString("snip_%1.png").arg(QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss"));
     QDir dir(m_dir);
@@ -178,17 +220,28 @@ CaptureSession *MainWindow::createCaptureSession()
     auto *session = new CaptureSession(this);
     session->setOverlayColor(m_color);
     session->setCaptureDelay(m_captureDelayMs);
+    session->setMultiSelectionEnabled(m_captureMultipleAreas);
 
     connect(session, &CaptureSession::captureReady,
             this, [this, session](const QImage &image) {
-                session->deleteLater();
-                processCapturedImage(image);
+                const bool multi = session->multiSelectionEnabled();
+                processCapturedImage(image, multi);
+                if (!multi)
+                    session->deleteLater();
             });
 
     connect(session, &CaptureSession::captureFailed,
             this, [this, session](const QString &error, bool fatal) {
+                if (session->multiSelectionEnabled())
+                    m_multiCaptureTexts.clear();
                 session->deleteLater();
                 handleCaptureError(error, fatal);
+            });
+
+    connect(session, &CaptureSession::multiCaptureFinished,
+            this, [this, session]() {
+                finalizeMultiCapture();
+                session->deleteLater();
             });
 
     return session;

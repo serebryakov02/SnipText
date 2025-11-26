@@ -5,11 +5,15 @@
 #include <QKeyEvent>
 #include <QColor>
 #include <QRegion>
+#include <QPushButton>
+#include <QResizeEvent>
 
 SelectionOverlay::SelectionOverlay(QWidget *parent)
     : QWidget(parent)
     , m_dragging(false)
     , m_color(QColor("red"))
+    , m_finishButton(new QPushButton(tr("Finish"), this))
+    , m_multiSelection(false)
 {
     // Frameless overlay that floats above everything and lets each pixel be drawn
     // with its own transparency (so we can dim the screen but leave the selection area clear).
@@ -17,6 +21,14 @@ SelectionOverlay::SelectionOverlay(QWidget *parent)
     setAttribute(Qt::WA_NoSystemBackground, true);
     setAttribute(Qt::WA_TranslucentBackground, true);
     setCursor(Qt::CrossCursor);
+
+    m_finishButton->setVisible(false);
+    m_finishButton->setCursor(Qt::PointingHandCursor);
+    connect(m_finishButton, &QPushButton::clicked, this, [this]() {
+        if (m_multiSelection)
+            emit finishRequested();
+        close();
+    });
 }
 
 void SelectionOverlay::mousePressEvent(QMouseEvent *e)
@@ -47,11 +59,24 @@ void SelectionOverlay::mouseReleaseEvent(QMouseEvent *e)
     m_dragging = false;
     m_selection = QRect(m_origin, e->pos()).normalized();
 
-    if (m_selection.width() > 0 && m_selection.height() > 0)
+    if (m_selection.width() > 0 && m_selection.height() > 0) {
+        m_completedSelections.append(m_selection);
         emit selectionFinished(m_selection);
-    else
-        emit selectionCanceled();
-    close();
+        if (!m_multiSelection) {
+            close();
+        } else {
+            m_selection = QRect();
+            update();
+        }
+    } else {
+        if (!m_multiSelection) {
+            emit selectionCanceled();
+            close();
+        } else {
+            m_selection = QRect();
+            update();
+        }
+    }
 }
 
 void SelectionOverlay::keyPressEvent(QKeyEvent *e)
@@ -64,37 +89,83 @@ void SelectionOverlay::keyPressEvent(QKeyEvent *e)
     }
 }
 
+void SelectionOverlay::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    updateFinishButtonPosition();
+}
+
 void SelectionOverlay::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
 
-    // Show the user a live preview instead of drawing a stored screenshot.
-    // We darken the whole screen, but keep the selected rectangle clear.
-    // That way, the user still sees the real desktop inside the selection area.
-
+    // Show the live desktop dimmed everywhere except the selected rectangles so
+    // the user can keep track of areas they've already captured.
+    QRegion clearRegion;
     const QRect sel = m_selection.normalized();
+    if (!sel.isNull())
+        clearRegion = clearRegion.united(QRegion(sel));
 
-    if (!sel.isNull()) {
-        // Dim outside the selection.
+    for (const QRect &stored : m_completedSelections)
+        clearRegion = clearRegion.united(QRegion(stored));
+
+    if (clearRegion.isEmpty()) {
+        p.fillRect(rect(), QColor(0, 0, 0, 120));
+    } else {
         QRegion outside(rect());
-        outside = outside.subtracted(QRegion(sel));
+        outside = outside.subtracted(clearRegion);
         p.save();
         p.setClipRegion(outside);
         p.fillRect(rect(), QColor(0, 0, 0, 120));
         p.restore();
+    }
 
-        // Red border around the selection
+    auto drawRect = [&p, this](const QRect &r) {
+        if (r.isNull())
+            return;
         p.setPen(QPen(m_color, 2));
         p.setBrush(Qt::NoBrush);
-        p.drawRect(sel.adjusted(0, 0, -1, -1));
-    } else {
-        // No selection yet: dim the whole screen.
-        p.fillRect(rect(), QColor(0, 0, 0, 120));
-    }
+        p.drawRect(r.adjusted(0, 0, -1, -1));
+    };
+
+    for (const QRect &stored : m_completedSelections)
+        drawRect(stored);
+
+    drawRect(sel);
 }
 
 void SelectionOverlay::setColor(const QColor &newColor)
 {
     m_color = newColor;
+}
+
+void SelectionOverlay::setMultiSelectionEnabled(bool enabled)
+{
+    m_multiSelection = enabled;
+    m_finishButton->setVisible(enabled);
+    updateFinishButtonPosition();
+    m_completedSelections.clear();
+    m_selection = QRect();
+    update();
+}
+
+void SelectionOverlay::removeLastSelection()
+{
+    if (m_completedSelections.isEmpty())
+        return;
+    m_completedSelections.removeLast();
+    update();
+}
+
+void SelectionOverlay::updateFinishButtonPosition()
+{
+    if (!m_finishButton)
+        return;
+
+    const int margin = 16;
+    const QSize btnSize = m_finishButton->sizeHint();
+    m_finishButton->setFixedSize(btnSize);
+    m_finishButton->move(width() - btnSize.width() - margin,
+                         height() - btnSize.height() - margin);
 }

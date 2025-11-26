@@ -4,6 +4,7 @@
 #include <QColor>
 #include <QMainWindow>
 #include <QString>
+#include <QStringList>
 
 class QPushButton;
 class QImage;
@@ -24,9 +25,11 @@ private slots:
     void onNewScreenshot();
 
 private:
-    void processCapturedImage(const QImage &image);
+    void processCapturedImage(const QImage &image, bool multiCapture);
     void handleCaptureError(const QString &errorMessage, bool fatal);
     CaptureSession* createCaptureSession();
+    void finalizeMultiCapture();
+    void saveScreenshot(const QImage &image);
 
 private:
     QPushButton *m_newShotBtn;
@@ -42,8 +45,13 @@ private:
     // When true, the screenshot is saved in addition to the extracted text.
     bool m_saveScreenshot;
 
+    // When true, allow capturing multiple regions before finishing.
+    bool m_captureMultipleAreas;
+
     // The directory where screenshots will be saved if the user has toggled that action on.
     QString m_dir;
+
+    QStringList m_multiCaptureTexts;
 
     void initGUI();
 
