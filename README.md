@@ -1,12 +1,18 @@
 Project Status
 ==============
 - SnipText is under ongoing development; build configuration and features will evolve alongside the main README instructions as time allows.
+- macOS is fully supported today; Windows/Linux ports are planned and will be documented once available.
 
 What SnipText Does
 ===================
 - Desktop utility that lets you select an area of the screen, runs Tesseract OCR on the captured pixels, copies the recognized text to the clipboard, and (optionally) saves the screenshot.
 - Ships with a minimal Qt Widgets UI: one button to start a capture, overlay color selector, and toggle for saving screenshots.
 - Features/UI are still evolving; expect updates as development continues.
+
+Demo Video
+==========================
+![video](https://github.com/user-attachments/assets/4cf976df-45c4-4e2c-8862-616758bbea8d)
+
 
 Building and Configuration
 ==========================
